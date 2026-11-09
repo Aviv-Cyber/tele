@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Web</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tg: {
+                            dark: {
+                                sidebar: '#17212b',
+                                chat: '#0e1621',
+                                bubbleOut: '#2b5278',
+                                bubbleIn: '#182533',
+                                hover: '#202b36',
+                                active: '#2b5278',
+                                border: '#10171e',
+                                textMuted: '#7f91a4'
+                            },
+                            light: {
+                                sidebar: '#ffffff',
+                                chat: '#8b9da7',
+                                bubbleOut: '#eeffde',
+                                bubbleIn: '#ffffff',
+                                hover: '#f4f4f5',
+                                active: '#e4e4e7',
+                                border: '#e4e4e7',
+                                textMuted: '#707579'
+                            },
+                            blue: '#3390ec',
+                            blueHover: '#2b7ecf'
+                        }
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '70%': { transform: 'scale(1.08)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(16px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        }
+                    },
+                    animation: {
+                        pop: 'pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        slideUp: 'slideUp 0.25s ease-out forwards'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        /* Custom Telegram Chat Wallpaper Pattern */
+        .tg-chat-bg {
+            background-color: #0e1621;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+        .light .tg-chat-bg {
+            background-color: #8c9da7;
+            background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(127, 145, 164, 0.3);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(127, 145, 164, 0.5);
+        }
+
+        /* Upgraded Animations & Popovers */
+        @keyframes popIn {
+            0% { transform: scale(0.85); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulseWave {
+            0%, 100% { transform: scaleY(0.4); }
+            50% { transform: scaleY(1); }
+        }
+        .animate-pop {
+            animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        .wave-bar {
+            animation: pulseWave 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="h-full bg-neutral-900 text-neutral-100 font-sans antialiased select-none overflow-hidden">
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="app" class="h-full w-full flex overflow-hidden relative">
+
+        <!-- LEFT SIDEBAR: Chats List -->
+        <aside id="sidebar" class="w-full sm:w-80 md:w-96 flex flex-col bg-tg-dark-sidebar dark:bg-tg-dark-sidebar border-r border-tg-dark-border dark:border-tg-dark-border shrink-0 transition-all duration-200 z-20">
+
+            <!-- Sidebar Header & Search -->
+            <div class="p-3 flex items-center gap-2">
+                <button id="menuBtn" onclick="toggleSettingsMenu()" class="p-2 text-tg-dark-textMuted hover:text-white rounded-full hover:bg-tg-dark-hover transition">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <div class="relative flex-1">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-tg-dark-textMuted"></i>
+                    <input
+                        id="searchInput"
+                        type="text"
+                        placeholder="Search chats..."
+                        class="w-full pl-9 pr-4 py-2 bg-[#242f3d] text-sm text-neutral-100 placeholder-tg-dark-textMuted rounded-full focus:outline-none focus:ring-2 focus:ring-tg-blue transition"
+                    >
+                </div>
+            </div>
+
+            <!-- Folders / Filter Tabs -->
+            <div class="flex px-2 border-b border-tg-dark-border text-xs font-semibold text-tg-dark-textMuted overflow-x-auto no-scrollbar">
+                <button class="folder-tab active border-b-2 border-tg-blue text-tg-blue px-3 py-2.5 shrink-0" data-folder="all">All Chats</button>
+                <button class="folder-tab px-3 py-2.5 hover:text-white shrink-0" data-folder="personal">Personal</button>
+                <button class="folder-tab px-3 py-2.5 hover:text-white shrink-0" data-folder="groups">Groups</button>
+                <button class="folder-tab px-3 py-2.5 hover:text-white shrink-0" data-folder="channels">Channels</button>
+                <button class="folder-tab px-3 py-2.5 hover:text-white shrink-0" data-folder="bots">Bots</button>
+            </div>
+
+            <!-- Chats Scrollable List -->
+            <div id="chatsList" class="flex-1 overflow-y-auto divide-y divide-transparent">
+                <!-- Dynamically populated chats -->
+            </div>
+        </aside>
+
+        <!-- MAIN CHAT WINDOW -->
+        <main class="flex-1 flex flex-col h-full bg-tg-dark-chat dark:bg-tg-dark-chat tg-chat-bg relative z-10">
+
+            <!-- CHAT HEADER -->
+            <header id="chatHeader" class="h-14 px-4 bg-tg-dark-sidebar dark:bg-tg-dark-sidebar border-b border-tg-dark-border flex items-center justify-between z-10 shrink-0">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="toggleProfileDrawer()">
+                    <button id="backToChats" onclick="event.stopPropagation(); closeChatMobile()" class="sm:hidden p-1.5 text-tg-dark-textMuted hover:text-white rounded-full">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                    <div class="relative">
+                        <img id="headerAvatar" src="" class="w-10 h-10 rounded-full object-cover">
+                        <span id="headerOnlineDot" class="w-3 h-3 bg-green-500 border-2 border-tg-dark-sidebar rounded-full absolute bottom-0 right-0 hidden"></span>
+                    </div>
+                    <div>
+                        <h2 id="headerTitle" class="font-semibold text-sm leading-tight text-white">Select a chat</h2>
+                        <span id="headerStatus" class="text-xs text-tg-dark-textMuted">online</span>
+                    </div>
+                </div>
+
+                <!-- Header Action Buttons -->
+                <div class="flex items-center gap-1 text-tg-dark-textMuted">
+                    <button onclick="toggleInChatSearch()" class="p-2 hover:text-white hover:bg-tg-dark-hover rounded-full transition" title="Search messages">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </button>
+                    <button id="themeToggle" class="p-2 hover:text-white hover:bg-tg-dark-hover rounded-full transition" title="Toggle Theme">
+                        <i id="themeIcon" data-lucide="moon" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="toggleProfileDrawer()" class="p-2 hover:text-white hover:bg-tg-dark-hover rounded-full transition" title="Profile Details">
+                        <i data-lucide="more-vertical" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- IN-CHAT SEARCH BAR (TOGGLED) -->
+            <div id="inChatSearchBar" class="hidden bg-tg-dark-sidebar px-4 py-2 border-b border-tg-dark-border flex items-center gap-2 z-10">
+                <i data-lucide="search" class="w-4 h-4 text-tg-dark-textMuted"></i>
+                <input id="inChatSearchInput" type="text" placeholder="Search in this chat..." class="bg-transparent text-sm text-white focus:outline-none flex-1">
+                <button onclick="toggleInChatSearch()" class="text-tg-dark-textMuted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+
+            <!-- PINNED MESSAGE BANNER -->
+            <div id="pinnedBanner" class="hidden bg-tg-dark-sidebar/90 backdrop-blur px-4 py-2 border-b border-tg-dark-border flex items-center justify-between z-10 text-xs">
+                <div class="flex items-center gap-3 border-l-2 border-tg-blue pl-2 overflow-hidden">
+                    <i data-lucide="pin" class="w-4 h-4 text-tg-blue shrink-0"></i>
+                    <div class="truncate">
+                        <span class="text-tg-blue font-semibold block">Pinned Message</span>
+                        <span id="pinnedText" class="text-tg-dark-textMuted truncate block">Hello world!</span>
+                    </div>
+                </div>
+                <button onclick="dismissPinned()" class="text-tg-dark-textMuted hover:text-white p-1">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- MESSAGES FEED -->
+            <div id="messagesFeed" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col" onclick="closePopovers()">
+                <!-- Messages rendered dynamically -->
+            </div>
+
+            <!-- MESSAGE INPUT BAR -->
+            <footer class="p-3 bg-tg-dark-sidebar dark:bg-tg-dark-sidebar border-t border-tg-dark-border z-10 shrink-0 relative">
+
+                <!-- ATTACHMENT MENU POPOVER -->
+                <div id="attachMenu" class="hidden absolute bottom-16 left-4 bg-tg-dark-sidebar border border-tg-dark-border rounded-2xl p-3 shadow-2xl animate-pop z-30 grid grid-cols-4 gap-3 w-64">
+                    <button onclick="triggerFilePicker('photo')" class="flex flex-col items-center gap-1 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:scale-110 transition"><i data-lucide="image" class="w-5 h-5"></i></div>
+                        <span class="text-[11px] text-tg-dark-textMuted">Photo</span>
+                    </button>
+                    <button onclick="triggerFilePicker('file')" class="flex flex-col items-center gap-1 group">
+                        <div class="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center group-hover:scale-110 transition"><i data-lucide="file" class="w-5 h-5"></i></div>
+                        <span class="text-[11px] text-tg-dark-textMuted">Document</span>
+                    </button>
+                    <button onclick="triggerFilePicker('location')" class="flex flex-col items-center gap-1 group">
+                        <div class="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center group-hover:scale-110 transition"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+                        <span class="text-[11px] text-tg-dark-textMuted">Location</span>
+                    </button>
+                    <button onclick="triggerFilePicker('contact')" class="flex flex-col items-center gap-1 group">
+                        <div class="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center group-hover:scale-110 transition"><i data-lucide="user" class="w-5 h-5"></i></div>
+                        <span class="text-[11px] text-tg-dark-textMuted">Contact</span>
+                    </button>
+                </div>
+
+                <!-- EMOJI & STICKER PICKER POPOVER -->
+                <div id="emojiPicker" class="hidden absolute bottom-16 right-12 bg-tg-dark-sidebar border border-tg-dark-border rounded-2xl p-3 shadow-2xl animate-pop z-30 w-72">
+                    <div class="flex border-b border-tg-dark-border mb-2 text-xs font-semibold text-tg-dark-textMuted pb-1">
+                        <button class="flex-1 text-tg-blue">Emojis</button>
+                        <button class="flex-1 hover:text-white">Stickers</button>
+                        <button class="flex-1 hover:text-white">GIFs</button>
+                    </div>
+                    <div class="grid grid-cols-6 gap-2 text-xl max-h-48 overflow-y-auto p-1">
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('😊')">😊</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('🚀')">🚀</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('🔥')">🔥</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('❤️')">❤️</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('👍')">👍</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('🎉')">🎉</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('💡')">💡</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('✨')">✨</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('🙌')">🙌</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('😎')">😎</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('🤖')">🤖</span>
+                        <span class="cursor-pointer hover:scale-125 transition" onclick="insertEmoji('💯')">💯</span>
+                    </div>
+                </div>
+
+                <form id="messageForm" class="max-w-4xl mx-auto flex items-end gap-2">
+
+                    <button type="button" onclick="toggleAttachMenu(event)" class="p-2.5 text-tg-dark-textMuted hover:text-white hover:bg-tg-dark-hover rounded-full transition">
+                        <i data-lucide="paperclip" class="w-5 h-5"></i>
+                    </button>
+
+                    <div class="flex-1 bg-[#242f3d] rounded-2xl flex items-end px-3 py-1.5 focus-within:ring-2 focus-within:ring-tg-blue transition">
+                        <textarea
+                            id="messageInput"
+                            rows="1"
+                            placeholder="Write a message..."
+                            class="w-full bg-transparent text-sm text-white placeholder-tg-dark-textMuted focus:outline-none resize-none max-h-32 py-1"
+                        ></textarea>
+                        <button type="button" onclick="toggleEmojiPicker(event)" class="p-1.5 text-tg-dark-textMuted hover:text-white rounded-full">
+                            <i data-lucide="smile" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <!-- SEND BUTTON OR VOICE RECORD BUTTON -->
+                    <button id="sendBtn" type="submit" class="p-3 bg-tg-blue hover:bg-tg-blueHover text-white rounded-full shadow-lg transition flex items-center justify-center">
+                        <i id="sendIcon" data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                    <button id="voiceBtn" type="button" onclick="toggleVoiceRecord()" class="p-3 bg-tg-dark-hover hover:bg-red-500/20 text-tg-dark-textMuted hover:text-red-400 rounded-full transition flex items-center justify-center">
+                        <i data-lucide="mic" class="w-5 h-5"></i>
+                    </button>
+                </form>
+            </footer>
+        </main>
+
+        <!-- RIGHT SIDEBAR: PROFILE & INFO DRAWER -->
+        <aside id="profileDrawer" class="hidden w-80 bg-tg-dark-sidebar border-l border-tg-dark-border flex-col shrink-0 z-20">
+            <div class="h-14 px-4 flex items-center justify-between border-b border-tg-dark-border">
+                <h3 class="font-semibold text-sm">User Info</h3>
+                <button onclick="toggleProfileDrawer()" class="p-1.5 text-tg-dark-textMuted hover:text-white rounded-full">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6 flex flex-col items-center text-center border-b border-tg-dark-border">
+                <img id="drawerAvatar" src="" class="w-24 h-24 rounded-full object-cover mb-3 shadow-md">
+                <h4 id="drawerName" class="font-bold text-lg text-white">Name</h4>
+                <span id="drawerStatus" class="text-xs text-tg-dark-textMuted">online</span>
+            </div>
+            <div class="p-4 space-y-4 text-sm">
+                <div class="flex items-center gap-4 text-tg-dark-textMuted">
+                    <i data-lucide="phone" class="w-5 h-5"></i>
+                    <div>
+                        <div class="text-white font-medium">+1 (555) 019-2834</div>
+                        <div class="text-xs">Phone number</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-tg-dark-textMuted">
+                    <i data-lucide="at-sign" class="w-5 h-5"></i>
+                    <div>
+                        <div id="drawerUsername" class="text-white font-medium">@username</div>
+                        <div class="text-xs">Username</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-tg-dark-textMuted">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <div class="flex-1 flex items-center justify-between">
+                        <span class="text-white">Notifications</span>
+                        <input type="checkbox" checked class="accent-tg-blue cursor-pointer">
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MEDIA LIGHTBOX MODAL OVERLAY -->
+        <div id="mediaModal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-pop" onclick="closeMediaModal()">
+            <button class="absolute top-4 right-4 text-white hover:bg-neutral-800 p-2 rounded-full"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <img id="modalImg" src="" class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl">
+        </div>
+
+        <!-- SETTINGS / MAIN MENU DRAWER OVERLAY -->
+        <div id="settingsMenu" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-start" onclick="toggleSettingsMenu()">
+            <div class="w-72 sm:w-80 h-full bg-tg-dark-sidebar border-r border-tg-dark-border p-4 flex flex-col justify-between shadow-2xl animate-pop" onclick="event.stopPropagation()">
+                <div class="space-y-4">
+                    <!-- User Account Summary -->
+                    <div class="flex items-center gap-3 p-2 border-b border-tg-dark-border pb-4 cursor-pointer hover:bg-tg-dark-hover rounded-xl transition" onclick="openMyProfileModal()">
+                        <img id="menuUserAvatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1 min-w-0">
+                            <h3 id="menuUserName" class="font-bold text-white text-sm truncate">Telegram User</h3>
+                            <p id="menuUserPhone" class="text-xs text-tg-dark-textMuted truncate">+1 (555) 019-2834</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-tg-dark-textMuted"></i>
+                    </div>
+                    <!-- Menu Links -->
+                    <div class="space-y-1 text-sm font-medium text-tg-dark-textMuted">
+                        <button onclick="openMyProfileModal()" class="w-full flex items-center justify-between px-3 py-2.5 hover:text-white hover:bg-tg-dark-hover rounded-xl transition group">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="user" class="w-5 h-5 text-tg-blue"></i> <span>My Profile</span>
+                            </div>
+                            <span class="text-[10px] bg-tg-blue/20 text-tg-blue px-2 py-0.5 rounded-full">Edit</span>
+                        </button>
+                        <button onclick="openNewGroupModal()" class="w-full flex items-center justify-between px-3 py-2.5 hover:text-white hover:bg-tg-dark-hover rounded-xl transition">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="users" class="w-5 h-5 text-emerald-400"></i> <span>New Group</span>
+                            </div>
+                            <i data-lucide="plus" class="w-4 h-4 text-tg-dark-textMuted"></i>
+                        </button>
+                        <button onclick="openSavedMessages()" class="w-full flex items-center justify-between px-3 py-2.5 hover:text-white hover:bg-tg-dark-hover rounded-xl transition">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="bookmark" class="w-5 h-5 text-amber-400"></i> <span>Saved Messages</span>
+                            </div>
+                            <span class="text-xs text-tg-dark-textMuted">Cloud</span>
+                        </button>
+                        <button onclick="openAppSettingsModal()" class="w-full flex items-center justify-between px-3 py-2.5 hover:text-white hover:bg-tg-dark-hover rounded-xl transition">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="settings" class="w-5 h-5 text-purple-400"></i> <span>Settings</span>
+                            </div>
+                        </button>
+                        <button onclick="openDocsModal()" class="w-full flex items-center justify-between px-3 py-2.5 hover:text-white hover:bg-tg-dark-hover rounded-xl transition">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="book-open" class="w-5 h-5 text-cyan-400"></i> <span>Feature Documentation</span>
+                            </div>
+                            <span class="text-[10px] bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full font-bold">Docs</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="border-t border-tg-dark-border pt-3 flex items-center justify-between text-xs text-tg-dark-textMuted">
+                    <span>Telegram Web v2.5</span>
+                    <button onclick="toggleSettingsMenu()" class="text-tg-blue hover:underline">Close Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- APP SETTINGS MODAL -->
+        <div id="appSettingsModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onclick="closeAppSettingsModal()">
+            <div class="bg-tg-dark-sidebar border border-tg-dark-border rounded-2xl w-full max-w-md p-5 shadow-2xl animate-pop relative space-y-4" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between border-b border-tg-dark-border pb-3">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-purple-400"></i> Settings & Preferences</h3>
+                    <button onclick="closeAppSettingsModal()" class="text-tg-dark-textMuted hover:text-white p-1 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-center justify-between py-2 border-b border-tg-dark-border/40">
+                        <div>
+                            <div class="text-white font-medium">Dark Mode</div>
+                            <div class="text-xs text-tg-dark-textMuted">Toggle app theme</div>
+                        </div>
+                        <button onclick="toggleThemeGlobal()" class="px-3 py-1 bg-tg-dark-hover hover:bg-tg-blue hover:text-white rounded-lg text-xs font-semibold text-tg-dark-textMuted transition">Switch Theme</button>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-tg-dark-border/40">
+                        <div>
+                            <div class="text-white font-medium">Audio Synthesizer Sound Effects</div>
+                            <div class="text-xs text-tg-dark-textMuted">Play pings on message receive/send</div>
+                        </div>
+                        <input id="soundFxToggle" type="checkbox" checked class="accent-tg-blue cursor-pointer w-4 h-4">
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <div>
+                            <div class="text-white font-medium">Desktop Notifications</div>
+                            <div class="text-xs text-tg-dark-textMuted">Simulated alert badges</div>
+                        </div>
+                        <input type="checkbox" checked class="accent-tg-blue cursor-pointer w-4 h-4">
+                    </div>
+                </div>
+                <div class="pt-2">
+                    <button onclick="closeAppSettingsModal()" class="w-full py-2.5 bg-tg-blue hover:bg-tg-blueHover text-white font-bold rounded-xl text-xs transition">Save & Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MY PROFILE EDIT MODAL -->
+        <div id="myProfileModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onclick="closeMyProfileModal()">
+            <div class="bg-tg-dark-sidebar border border-tg-dark-border rounded-2xl w-full max-w-md p-5 shadow-2xl animate-pop relative space-y-4" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between border-b border-tg-dark-border pb-3">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="user" class="w-5 h-5 text-tg-blue"></i> Edit Profile</h3>
+                    <button onclick="closeMyProfileModal()" class="text-tg-dark-textMuted hover:text-white p-1 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="flex flex-col items-center gap-3">
+                    <div class="relative group cursor-pointer" onclick="changeProfilePhoto()">
+                        <img id="profileEditAvatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80" class="w-20 h-20 rounded-full object-cover border-2 border-tg-blue">
+                        <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <i data-lucide="camera" class="w-6 h-6 text-white"></i>
+                        </div>
+                    </div>
+                    <span class="text-xs text-tg-blue hover:underline cursor-pointer" onclick="changeProfilePhoto()">Change Photo</span>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs text-tg-dark-textMuted font-medium block mb-1">Display Name</label>
+                        <input id="profileNameInput" type="text" value="Telegram User" class="w-full bg-[#242f3d] px-3 py-2 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-tg-blue">
+                    </div>
+                    <div>
+                        <label class="text-xs text-tg-dark-textMuted font-medium block mb-1">Username</label>
+                        <input id="profileUsernameInput" type="text" value="@telegram_user" class="w-full bg-[#242f3d] px-3 py-2 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-tg-blue">
+                    </div>
+                </div>
+                <div class="pt-2 flex gap-2">
+                    <button onclick="closeMyProfileModal()" class="flex-1 py-2 bg-tg-dark-hover text-tg-dark-textMuted hover:text-white rounded-xl text-xs font-semibold transition">Cancel</button>
+                    <button onclick="saveMyProfile()" class="flex-1 py-2 bg-tg-blue hover:bg-tg-blueHover text-white rounded-xl text-xs font-bold transition">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW GROUP MODAL -->
+        <div id="newGroupModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onclick="closeNewGroupModal()">
+            <div class="bg-tg-dark-sidebar border border-tg-dark-border rounded-2xl w-full max-w-md p-5 shadow-2xl animate-pop relative space-y-4" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between border-b border-tg-dark-border pb-3">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="users" class="w-5 h-5 text-emerald-400"></i> Create New Group</h3>
+                    <button onclick="closeNewGroupModal()" class="text-tg-dark-textMuted hover:text-white p-1 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div>
+                    <label class="text-xs text-tg-dark-textMuted font-medium block mb-1">Group Name</label>
+                    <input id="groupNameInput" type="text" placeholder="e.g. Developers & Designers" class="w-full bg-[#242f3d] px-3 py-2 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-tg-blue">
+                </div>
+                <div>
+                    <label class="text-xs text-tg-dark-textMuted font-medium block mb-2">Select Members</label>
+                    <div class="space-y-2 max-h-40 overflow-y-auto">
+                        <label class="flex items-center justify-between p-2 hover:bg-tg-dark-hover rounded-xl cursor-pointer">
+                            <span class="text-xs text-white">Pavel Durov</span>
+                            <input type="checkbox" checked class="accent-tg-blue">
+                        </label>
+                        <label class="flex items-center justify-between p-2 hover:bg-tg-dark-hover rounded-xl cursor-pointer">
+                            <span class="text-xs text-white">AI Assistant Bot</span>
+                            <input type="checkbox" checked class="accent-tg-blue">
+                        </label>
+                    </div>
+                </div>
+                <div class="pt-2 flex gap-2">
+                    <button onclick="closeNewGroupModal()" class="flex-1 py-2 bg-tg-dark-hover text-tg-dark-textMuted hover:text-white rounded-xl text-xs font-semibold transition">Cancel</button>
+                    <button onclick="createNewGroup()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition">Create Group</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FEATURE DOCUMENTATION & GUIDE MODAL -->
+        <div id="docsModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onclick="closeDocsModal()">
+            <div class="bg-tg-dark-sidebar border border-tg-dark-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-pop relative overflow-hidden" onclick="event.stopPropagation()">
+                <!-- Docs Header -->
+                <div class="p-5 border-b border-tg-dark-border flex items-center justify-between shrink-0 bg-tg-dark-sidebar/90 backdrop-blur">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                            <i data-lucide="book-open" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-white">App Feature Documentation</h3>
+                            <p class="text-xs text-tg-dark-textMuted">Complete interactive user guide & keyboard shortcuts</p>
+                        </div>
+                    </div>
+                    <button onclick="closeDocsModal()" class="text-tg-dark-textMuted hover:text-white p-1.5 rounded-full hover:bg-tg-dark-hover transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Docs Search Bar -->
+                <div class="p-3 bg-[#1e2a38] border-b border-tg-dark-border shrink-0">
+                    <div class="relative">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-tg-dark-textMuted"></i>
+                        <input id="docsSearchInput" oninput="filterDocs()" type="text" placeholder="Search documentation..." class="w-full pl-9 pr-4 py-2 bg-tg-dark-sidebar text-xs text-white placeholder-tg-dark-textMuted rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-blue">
+                    </div>
+                </div>
+
+                <!-- Docs Content Body -->
+                <div id="docsContent" class="flex-1 overflow-y-auto p-5 space-y-6 text-sm divide-y divide-tg-dark-border/40">
+                    <!-- Audio Voice Notes & Web Audio -->
+                    <div class="doc-section pt-4 first:pt-0">
+                        <h4 class="font-bold text-tg-blue text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <i data-lucide="mic" class="w-4 h-4"></i> Audio Playback & Voice Notes
+                        </h4>
+                        <ul class="space-y-2 text-tg-dark-textMuted text-xs leading-relaxed">
+                            <li><strong class="text-white">Web Audio Synthesizer:</strong> Voice message bubbles play back real audio tones generated with the browser's Web Audio API.</li>
+                            <li><strong class="text-white">Equalizer Wave Visualization:</strong> Dynamic pulse animations sync with live voice note playback.</li>
+                            <li><strong class="text-white">Voice Note Creation:</strong> Tap the microphone icon in the message input bar to record and attach new voice messages.</li>
+                            <li><strong class="text-white">Sound Effects Synthesizer:</strong> UI clicks and message send/receive produce dual-frequency audio pings.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Keyboard Shortcuts & Global Controls -->
+                    <div class="doc-section pt-4">
+                        <h4 class="font-bold text-emerald-400 text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <i data-lucide="keyboard" class="w-4 h-4"></i> Keyboard Shortcuts & Controls
+                        </h4>
+                        <ul class="space-y-2 text-tg-dark-textMuted text-xs leading-relaxed">
+                            <li><strong class="text-white">Esc Key:</strong> Instantly close open popovers, context menus, and backdrop modal dialogs.</li>
+                            <li><strong class="text-white">Ctrl + K / Cmd + K:</strong> Jump directly to the chat list search input from anywhere.</li>
+                            <li><strong class="text-white">Enter:</strong> Send active input message text immediately.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Micro-Interactions & Popovers -->
+                    <div class="doc-section pt-4">
+                        <h4 class="font-bold text-amber-400 text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i> Interactive Popovers & Actions
+                        </h4>
+                        <ul class="space-y-2 text-tg-dark-textMuted text-xs leading-relaxed">
+                            <li><strong class="text-white">Context Menu & Quick Reactions:</strong> Right-click (or tap & hold) any message bubble to trigger quick emoji reactions (👍, ❤️, 🔥, 😂, 😮, 💩).</li>
+                            <li><strong class="text-white">Pin Message:</strong> Pin important messages to top header banners.</li>
+                            <li><strong class="text-white">Media Lightbox Viewer:</strong> Click any image message to expand into an animated backdrop-blurred fullscreen image modal.</li>
+                            <li><strong class="text-white">In-Chat Search:</strong> Search keyword text directly within active chat threads using the header search icon.</li>
+                            <li><strong class="text-white">Folder Filters:</strong> Filter chats by All Chats, Personal, Groups, Channels, and Bots.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Docs Footer -->
+                <div class="p-4 border-t border-tg-dark-border shrink-0 flex items-center justify-between bg-tg-dark-sidebar/90">
+                    <span class="text-xs text-tg-dark-textMuted">Built-in Documentation • Telegram Web v2.5</span>
+                    <button onclick="closeDocsModal()" class="px-4 py-2 bg-tg-blue hover:bg-tg-blueHover text-white font-semibold text-xs rounded-xl transition">Got it!</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTEXT MENU & REACTION POPOVER -->
+        <div id="contextMenu" class="hidden fixed z-50 bg-tg-dark-sidebar border border-tg-dark-border rounded-xl shadow-2xl p-2 w-52 animate-pop">
+            <!-- Dynamic Emoji Reaction Quick Bar -->
+            <div class="flex justify-between p-1.5 border-b border-tg-dark-border text-lg mb-1">
+                <button onclick="addReaction('👍')" class="hover:scale-125 transition">👍</button>
+                <button onclick="addReaction('❤️')" class="hover:scale-125 transition">❤️</button>
+                <button onclick="addReaction('🔥')" class="hover:scale-125 transition">🔥</button>
+                <button onclick="addReaction('😂')" class="hover:scale-125 transition">😂</button>
+                <button onclick="addReaction('😮')" class="hover:scale-125 transition">😮</button>
+                <button onclick="addReaction('💩')" class="hover:scale-125 transition">💩</button>
+            </div>
+            <button onclick="pinSelectedMessage()" class="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-tg-dark-hover rounded flex items-center gap-2">
+                <i data-lucide="pin" class="w-4 h-4 text-tg-blue"></i> Pin Message
+            </button>
+            <button onclick="copySelectedMessage()" class="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-tg-dark-hover rounded flex items-center gap-2">
+                <i data-lucide="copy" class="w-4 h-4 text-tg-dark-textMuted"></i> Copy Text
+            </button>
+            <button onclick="deleteSelectedMessage()" class="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded flex items-center gap-2">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Delete Message
+            </button>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // MOCK DATA: CHATS & MESSAGES
+        const chatsData = [
+            {
+                id: "c_saved",
+                name: "Saved Messages",
+                username: "@me",
+                avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80",
+                type: "personal",
+                online: true,
+                pinned: true,
+                unread: 0,
+                messages: [
+                    { id: "m_saved_1", sender: "You", text: "Welcome to your Saved Messages cloud storage! 🔖", timestamp: "12:00 PM", isOutgoing: true, reactions: ["❤️"] }
+                ]
+            },
+            {
+                id: "c1",
+                name: "Pavel Durov",
+                username: "@durov",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+                type: "personal",
+                online: true,
+                pinned: true,
+                unread: 2,
+                messages: [
+                    { id: "m1", sender: "Pavel Durov", text: "Welcome to Telegram Web Replica! 🚀", timestamp: "10:42 AM", isOutgoing: false, reactions: ["👍"] },
+                    { id: "m2", sender: "Pavel Durov", text: "Build powerful web applications easily.", timestamp: "10:43 AM", isOutgoing: false, reactions: [] },
+                    { id: "m_img", sender: "Pavel Durov", text: "Check out this screenshot from our new UI design update! 🎨", mediaUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", timestamp: "10:45 AM", isOutgoing: false, reactions: ["🔥"] }
+                ]
+            },
+            {
+                id: "c2",
+                name: "Tech News Channel",
+                username: "@technews",
+                avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80",
+                type: "channels",
+                online: false,
+                pinned: true,
+                unread: 15,
+                messages: [
+                    { id: "m3", sender: "Tech News Channel", text: "BREAKING: Quantum computing reaches new benchmark! Read full analysis below. 🔬", timestamp: "09:15 AM", isOutgoing: false, reactions: ["🔥", "❤️"] }
+                ]
+            },
+            {
+                id: "c3",
+                name: "AI Assistant Bot",
+                username: "@helper_bot",
+                avatar: "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=300&q=80",
+                type: "bots",
+                online: true,
+                pinned: false,
+                unread: 0,
+                messages: [
+                    { id: "m4", sender: "AI Assistant Bot", text: "Hello! I am a simulated bot. Type anything and I will reply automatically.", timestamp: "Yesterday", isOutgoing: false, reactions: [] }
+                ]
+            },
+            {
+                id: "c4",
+                name: "Dev Community Group",
+                username: "@devs_chat",
+                avatar: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=300&q=80",
+                type: "groups",
+                online: false,
+                pinned: false,
+                unread: 0,
+                messages: [
+                    { id: "m5", sender: "Alice", text: "Hey everyone, anyone working with Tailwind 3?", timestamp: "Yesterday", isOutgoing: false, reactions: [] },
+                    { id: "m6", sender: "You", text: "Yes! Building custom Telegram replicas with it.", timestamp: "Yesterday", isOutgoing: true, reactions: ["💯"] }
+                ]
+            }
+        ];
+
+        // APP STATE
+        let activeChatId = "c1";
+        let activeFilter = "all";
+        let selectedMsgId = null;
+
+        // SOUND EFFECTS SYNTHESIZER
+        function playPingSound(freq = 600, duration = 0.15) {
+            const toggle = document.getElementById('soundFxToggle');
+            if (toggle && !toggle.checked) return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + duration);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {
+                console.log('Audio synth enabled');
+            }
+        }
+
+        // RENDER CHATS LIST IN SIDEBAR
+        function renderChatsList() {
+            const query = searchInput.value.toLowerCase().trim();
+            const listEl = document.getElementById('chatsList');
+            if (!listEl) return;
+
+            const filteredChats = chatsData.filter(chat => {
+                const matchesFolder = activeFilter === 'all' || chat.type === activeFilter;
+                const matchesSearch = !query || chat.name.toLowerCase().includes(query) || (chat.username && chat.username.toLowerCase().includes(query));
+                return matchesFolder && matchesSearch;
+            });
+
+            listEl.innerHTML = filteredChats.map(chat => {
+                const isActive = chat.id === activeChatId;
+                const lastMsg = chat.messages[chat.messages.length - 1];
+                const lastText = lastMsg ? (lastMsg.isVoice ? '🎤 Voice message' : (lastMsg.mediaUrl ? '📷 Photo' : lastMsg.text)) : 'No messages yet';
+                const lastTime = lastMsg ? lastMsg.timestamp : '';
+
+                return `
+                    <div
+                        onclick="selectChat('${chat.id}')"
+                        class="p-3 flex items-center gap-3 cursor-pointer transition border-b border-tg-dark-border/40 ${
+                            isActive
+                                ? 'bg-tg-blue text-white'
+                                : 'hover:bg-tg-dark-hover text-neutral-200'
+                        }"
+                    >
+                        <div class="relative shrink-0">
+                            <img src="${chat.avatar}" class="w-12 h-12 rounded-full object-cover">
+                            ${chat.online ? `<span class="w-3 h-3 bg-green-500 border-2 border-tg-dark-sidebar rounded-full absolute bottom-0 right-0"></span>` : ''}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-baseline mb-0.5">
+                                <h3 class="font-semibold text-sm truncate ${isActive ? 'text-white' : 'text-neutral-100'}">${chat.name}</h3>
+                                <span class="text-[11px] ${isActive ? 'text-white/80' : 'text-tg-dark-textMuted'} shrink-0">${lastTime}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <p class="truncate ${isActive ? 'text-white/90' : 'text-tg-dark-textMuted'} flex-1 pr-2">${lastText}</p>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    ${chat.pinned ? `<i data-lucide="pin" class="w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-tg-dark-textMuted'}"></i>` : ''}
+                                    ${chat.unread > 0 ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white text-tg-blue' : 'bg-tg-blue text-white'}">${chat.unread}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // WEB AUDIO SYNTHESIZER FOR VOICE NOTES PLAYBACK
+        function playVoiceNoteTone(btnElement) {
+            playPingSound(520, 0.4);
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.6);
+
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.6);
+
+                // Animate play icon briefly
+                btnElement.classList.add('bg-emerald-500');
+                setTimeout(() => {
+                    btnElement.classList.remove('bg-emerald-500');
+                }, 600);
+            } catch (e) {
+                console.log('Audio playback initialized');
+            }
+        }
+
+        // GLOBAL KEYBOARD SHORTCUTS
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePopovers();
+                closeMediaModal();
+                closeDocsModal();
+                closeMyProfileModal();
+                closeNewGroupModal();
+                closeAppSettingsModal();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+        });
+
+        // RENDER ACTIVE CHAT MESSAGES
+        function renderMessages() {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            if (!chat) return;
+
+            // Update Header
+            headerTitle.textContent = chat.name;
+            headerAvatar.src = chat.avatar;
+            headerStatus.textContent = chat.online ? 'online' : 'offline';
+            if (chat.online) {
+                headerOnlineDot.classList.remove('hidden');
+            } else {
+                headerOnlineDot.classList.add('hidden');
+            }
+
+            const inChatQuery = document.getElementById('inChatSearchInput').value.toLowerCase().trim();
+
+            // Render Messages
+            messagesFeed.innerHTML = chat.messages
+                .filter(msg => !inChatQuery || (msg.text && msg.text.toLowerCase().includes(inChatQuery)))
+                .map(msg => `
+                <div class="flex flex-col ${msg.isOutgoing ? 'items-end' : 'items-start'} group">
+                    <div
+                        oncontextmenu="showContextMenu(event, '${msg.id}')"
+                        class="max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 relative shadow-md transition-transform active:scale-[0.98] ${
+                        msg.isOutgoing
+                            ? 'bg-tg-dark-bubbleOut text-white rounded-tr-xs'
+                            : 'bg-tg-dark-bubbleIn text-white rounded-tl-xs'
+                    }">
+                        ${!msg.isOutgoing && chat.type === 'groups' ? `<span class="text-xs font-bold text-tg-blue block mb-0.5">${msg.sender}</span>` : ''}
+
+                        ${msg.mediaUrl ? `
+                            <img src="${msg.mediaUrl}" onclick="openMediaModal('${msg.mediaUrl}')" class="w-full max-h-60 object-cover rounded-lg mb-1.5 cursor-pointer hover:opacity-90 transition">
+                        ` : ''}
+
+                        ${msg.isVoice ? `
+                            <div class="flex items-center gap-3 py-1 px-1">
+                                <button onclick="playVoiceNoteTone(this)" class="w-8 h-8 rounded-full bg-tg-blue hover:scale-105 transition flex items-center justify-center text-white"><i data-lucide="play" class="w-4 h-4 fill-white"></i></button>
+                                <div class="flex gap-1 items-center h-5">
+                                    <span class="w-1 h-3 bg-white/50 rounded-full wave-bar"></span>
+                                    <span class="w-1 h-5 bg-white rounded-full wave-bar"></span>
+                                    <span class="w-1 h-2 bg-white/50 rounded-full wave-bar"></span>
+                                    <span class="w-1 h-4 bg-white rounded-full wave-bar"></span>
+                                </div>
+                                <span class="text-xs text-white/70 font-mono">0:04</span>
+                            </div>
+                        ` : `<p class="text-sm leading-relaxed select-text">${msg.text}</p>`}
+
+                        <div class="flex items-center justify-end gap-1 mt-1 text-[10px] text-tg-dark-textMuted">
+                            <span>${msg.timestamp}</span>
+                            ${msg.isOutgoing ? '<i data-lucide="check-check" class="w-3.5 h-3.5 text-tg-blue"></i>' : ''}
+                        </div>
+
+                        ${msg.reactions && msg.reactions.length > 0 ? `
+                            <div class="absolute -bottom-2.5 right-2 bg-tg-dark-sidebar border border-tg-dark-border rounded-full px-1.5 py-0.5 text-xs flex gap-0.5 shadow animate-pop">
+                                ${msg.reactions.join(' ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            messagesFeed.scrollTop = messagesFeed.scrollHeight;
+            lucide.createIcons();
+        }
+
+        // SELECT CHAT
+        function selectChat(id) {
+            activeChatId = id;
+            const chat = chatsData.find(c => c.id === id);
+            if (chat) chat.unread = 0;
+
+            // Mobile viewport toggle
+            if (window.innerWidth < 640) {
+                document.getElementById('sidebar').classList.add('hidden');
+            }
+
+            playPingSound(700, 0.08);
+            renderChatsList();
+            renderMessages();
+            updateDrawerInfo();
+        }
+
+        function closeChatMobile() {
+            document.getElementById('sidebar').classList.remove('hidden');
+        }
+
+        // CONTEXT MENU & REACTIONS LOGIC
+        function showContextMenu(e, msgId) {
+            e.preventDefault();
+            selectedMsgId = msgId;
+            contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - 150)}px`;
+            contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 220)}px`;
+            contextMenu.classList.remove('hidden');
+        }
+
+        function closePopovers() {
+            contextMenu.classList.add('hidden');
+            document.getElementById('attachMenu').classList.add('hidden');
+            document.getElementById('emojiPicker').classList.add('hidden');
+        }
+
+        function addReaction(emoji) {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            const msg = chat.messages.find(m => m.id === selectedMsgId);
+            if (msg) {
+                if (!msg.reactions) msg.reactions = [];
+                if (!msg.reactions.includes(emoji)) msg.reactions.push(emoji);
+                playPingSound(800, 0.1);
+                renderMessages();
+            }
+            closePopovers();
+        }
+
+        function deleteSelectedMessage() {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            chat.messages = chat.messages.filter(m => m.id !== selectedMsgId);
+            renderMessages();
+            renderChatsList();
+            closePopovers();
+        }
+
+        function copySelectedMessage() {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            const msg = chat.messages.find(m => m.id === selectedMsgId);
+            if (msg && msg.text) {
+                document.execCommand('copy');
+            }
+            closePopovers();
+        }
+
+        function pinSelectedMessage() {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            const msg = chat.messages.find(m => m.id === selectedMsgId);
+            if (msg) {
+                document.getElementById('pinnedText').textContent = msg.text || 'Photo';
+                document.getElementById('pinnedBanner').classList.remove('hidden');
+            }
+            closePopovers();
+        }
+
+        function dismissPinned() {
+            document.getElementById('pinnedBanner').classList.add('hidden');
+        }
+
+        // SEND MESSAGE
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (!text) return;
+
+            const chat = chatsData.find(c => c.id === activeChatId);
+            if (!chat) return;
+
+            const newMsg = {
+                id: "m_" + Date.now(),
+                sender: "You",
+                text: text,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isOutgoing: true,
+                reactions: []
+            };
+
+            chat.messages.push(newMsg);
+            messageInput.value = '';
+            playPingSound(600, 0.12);
+            renderMessages();
+            renderChatsList();
+
+            // SIMULATED AUTOMATIC BOT RESPONSE
+            if (chat.type === 'bots' || chat.id === 'c1') {
+                setTimeout(() => {
+                    chat.messages.push({
+                        id: "m_reply_" + Date.now(),
+                        sender: chat.name,
+                        text: `Received: "${text}". Upgraded Telegram Web Replica is working smoothly! ⚡`,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        isOutgoing: false,
+                        reactions: ["👍"]
+                    });
+                    playPingSound(900, 0.2);
+                    renderMessages();
+                    renderChatsList();
+                }, 900);
+            }
+        });
+
+        // VOICE NOTE RECORD SIMULATION
+        function toggleVoiceRecord() {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            if (!chat) return;
+
+            chat.messages.push({
+                id: "m_voice_" + Date.now(),
+                sender: "You",
+                isVoice: true,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isOutgoing: true,
+                reactions: []
+            });
+            playPingSound(500, 0.15);
+            renderMessages();
+            renderChatsList();
+        }
+
+        // MEDIA ATTACHMENTS & EMOJIS POPOVER TOGGLES
+        function toggleAttachMenu(e) {
+            e.stopPropagation();
+            document.getElementById('attachMenu').classList.toggle('hidden');
+            document.getElementById('emojiPicker').classList.add('hidden');
+        }
+
+        function toggleEmojiPicker(e) {
+            e.stopPropagation();
+            document.getElementById('emojiPicker').classList.toggle('hidden');
+            document.getElementById('attachMenu').classList.add('hidden');
+        }
+
+        function insertEmoji(emoji) {
+            messageInput.value += emoji;
+            closePopovers();
+        }
+
+        function triggerFilePicker(type) {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            if (!chat) return;
+
+            if (type === 'photo') {
+                chat.messages.push({
+                    id: "m_img_" + Date.now(),
+                    sender: "You",
+                    text: "Attached Photo",
+                    mediaUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80",
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isOutgoing: true,
+                    reactions: []
+                });
+            } else {
+                chat.messages.push({
+                    id: "m_doc_" + Date.now(),
+                    sender: "You",
+                    text: `Shared ${type.toUpperCase()} file artifact.pdf 📁`,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isOutgoing: true,
+                    reactions: []
+                });
+            }
+            playPingSound(750, 0.15);
+            renderMessages();
+            renderChatsList();
+            closePopovers();
+        }
+
+        // MEDIA LIGHTBOX
+        function openMediaModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('mediaModal').classList.remove('hidden');
+        }
+
+        function closeMediaModal() {
+            document.getElementById('mediaModal').classList.add('hidden');
+        }
+
+        // SEARCH TOGGLES
+        function toggleInChatSearch() {
+            const bar = document.getElementById('inChatSearchBar');
+            bar.classList.toggle('hidden');
+            renderMessages();
+        }
+
+        document.getElementById('inChatSearchInput').addEventListener('input', renderMessages);
+
+        // FOLDER TAB SWITCHING
+        document.querySelectorAll('.folder-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.folder-tab').forEach(b => b.classList.remove('active', 'border-b-2', 'border-tg-blue', 'text-tg-blue'));
+                btn.classList.add('active', 'border-b-2', 'border-tg-blue', 'text-tg-blue');
+                activeFilter = btn.dataset.folder;
+                renderChatsList();
+            });
+        });
+
+        // SEARCH INPUT FILTER
+        searchInput.addEventListener('input', renderChatsList);
+
+        // SETTINGS / MAIN MENU DRAWER TOGGLE
+        function toggleSettingsMenu() {
+            const menu = document.getElementById('settingsMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // MENU BUTTON HANDLERS
+        function openMyProfileModal() {
+            if (!document.getElementById('settingsMenu').classList.contains('hidden')) {
+                toggleSettingsMenu();
+            }
+            document.getElementById('myProfileModal').classList.remove('hidden');
+        }
+
+        function closeMyProfileModal() {
+            document.getElementById('myProfileModal').classList.add('hidden');
+        }
+
+        function saveMyProfile() {
+            const newName = document.getElementById('profileNameInput').value.trim();
+            const newUsername = document.getElementById('profileUsernameInput').value.trim();
+            if (newName) {
+                document.getElementById('menuUserName').textContent = newName;
+            }
+            closeMyProfileModal();
+        }
+
+        function changeProfilePhoto() {
+            const randomAvatars = [
+                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
+                "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80",
+                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80"
+            ];
+            const currentSrc = document.getElementById('profileEditAvatar').src;
+            const available = randomAvatars.filter(url => url !== currentSrc);
+            const chosen = available[Math.floor(Math.random() * available.length)] || randomAvatars[0];
+
+            document.getElementById('menuUserAvatar').src = chosen;
+            document.getElementById('profileEditAvatar').src = chosen;
+        }
+
+        function openNewGroupModal() {
+            if (!document.getElementById('settingsMenu').classList.contains('hidden')) {
+                toggleSettingsMenu();
+            }
+            document.getElementById('newGroupModal').classList.remove('hidden');
+        }
+
+        function closeNewGroupModal() {
+            document.getElementById('newGroupModal').classList.add('hidden');
+        }
+
+        function createNewGroup() {
+            const inputVal = document.getElementById('groupNameInput').value.trim();
+            const groupName = inputVal || "New Team Group";
+            const newGroupId = "c_group_" + Date.now();
+
+            chatsData.unshift({
+                id: newGroupId,
+                name: groupName,
+                username: "@group_" + Date.now(),
+                avatar: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=300&q=80",
+                type: "groups",
+                online: true,
+                pinned: true,
+                unread: 0,
+                messages: [
+                    { id: "m_g_1", sender: "System", text: `Group "${groupName}" was created successfully! 🎉`, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOutgoing: false, reactions: ["🎉"] }
+                ]
+            });
+
+            closeNewGroupModal();
+            renderChatsList();
+            selectChat(newGroupId);
+        }
+
+        function openSavedMessages() {
+            if (!document.getElementById('settingsMenu').classList.contains('hidden')) {
+                toggleSettingsMenu();
+            }
+            selectChat('c_saved');
+        }
+
+        function openAppSettingsModal() {
+            if (!document.getElementById('settingsMenu').classList.contains('hidden')) {
+                toggleSettingsMenu();
+            }
+            document.getElementById('appSettingsModal').classList.remove('hidden');
+        }
+
+        function closeAppSettingsModal() {
+            document.getElementById('appSettingsModal').classList.add('hidden');
+        }
+
+        // FEATURE DOCUMENTATION MODAL HANDLERS
+        function openDocsModal() {
+            if (!document.getElementById('settingsMenu').classList.contains('hidden')) {
+                toggleSettingsMenu();
+            }
+            document.getElementById('docsModal').classList.remove('hidden');
+        }
+
+        function closeDocsModal() {
+            document.getElementById('docsModal').classList.add('hidden');
+        }
+
+        function filterDocs() {
+            const query = document.getElementById('docsSearchInput').value.toLowerCase().trim();
+            const sections = document.querySelectorAll('.doc-section');
+            sections.forEach(sec => {
+                const text = sec.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    sec.style.display = 'block';
+                } else {
+                    sec.style.display = 'none';
+                }
+            });
+        }
+
+        function toggleThemeGlobal() {
+            document.documentElement.classList.toggle('dark');
+            document.documentElement.classList.toggle('light');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeIcon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        // PROFILE DRAWER TOGGLE
+        function toggleProfileDrawer() {
+            profileDrawer.classList.toggle('hidden');
+            profileDrawer.classList.toggle('flex');
+            updateDrawerInfo();
+        }
+
+        function updateDrawerInfo() {
+            const chat = chatsData.find(c => c.id === activeChatId);
+            if (!chat) return;
+            document.getElementById('drawerAvatar').src = chat.avatar;
+            document.getElementById('drawerName').textContent = chat.name;
+            document.getElementById('drawerUsername').textContent = chat.username;
+            document.getElementById('drawerStatus').textContent = chat.online ? 'online' : 'offline';
+        }
+
+        // THEME TOGGLE (LIGHT / DARK)
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            document.documentElement.classList.toggle('light');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeIcon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        });
+
+        // INITIALIZE APP
+        window.onload = () => {
+            renderChatsList();
+            renderMessages();
+        };
+    </script>
+</body>
+</html>
